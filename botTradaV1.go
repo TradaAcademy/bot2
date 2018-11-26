@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -78,9 +77,12 @@ func main() {
 	// })
 
 	b.Handle("/start", func(m *tb.Message) {
+		if m.FromGroup() {
+			b.Send(m.Sender, "Xin hãy chat riêng với bot để đăng kí.")
+		} else {
 
-		b.Send(m.Sender, "Cảm ơn bạn đã liên lạc với Trada Tech. Đây là bot trả lời tự động hỗ trợ các lệnh sau:\n/info - thông tin về dịch vụ và khoá học\n/register - đăng kí khoá học, dịch vụ, hoặc đặt câu hỏi cho Trada Tech.\n/cancel - thông báo muốn huỷ đăng kí.\n/help - hiện hướng dẫn.")
-
+			b.Send(m.Sender, "Cảm ơn bạn đã liên lạc với Trada Tech. Đây là bot trả lời tự động hỗ trợ các lệnh sau:\n/info - thông tin về dịch vụ và khoá học\n/register - đăng kí khoá học, dịch vụ, hoặc đặt câu hỏi cho Trada Tech.\n/cancel - thông báo muốn huỷ đăng kí.\n/help - hiện hướng dẫn.")
+		}
 	})
 	b.Handle("/help", func(m *tb.Message) {
 
@@ -94,8 +96,12 @@ func main() {
 	})
 
 	b.Handle("/register", func(m *tb.Message) {
-
-		next(b, m)
+		if m.FromGroup() {
+			b.Send(m.Sender, "Xin hãy chat riêng với bot để đăng kí.")
+		} else {
+			startRegistration(b, m)
+			//next(b, m)
+		}
 
 	})
 
@@ -156,7 +162,7 @@ func sendCourseChoices(b *tb.Bot, m *tb.Message, text string) (*tb.Message, erro
 		//[]tb.ReplyButton{c3Btn},
 	}
 
-	return b.Reply(m,
+	return b.Send(m.Sender,
 		text,
 		&tb.ReplyMarkup{
 			ReplyKeyboard:       replyChoice,
@@ -231,53 +237,6 @@ func sendCancelRequest(b *tb.Bot, m *tb.Message) {
 	}
 }
 
-func askDisplayName(b *tb.Bot, m *tb.Message) {
-
-	sendAndHideKeyboard(b, m, "Tên của bạn là: ")
-
-}
-
-func askPhoneNumber(b *tb.Bot, m *tb.Message) {
-	sendAndHideKeyboard(b, m, "Vui lòng nhập số điện thoại của bạn: ")
-}
-
-func reEnterPhonenum(b *tb.Bot, m *tb.Message) {
-	sendAndHideKeyboard(b, m, "Bạn vừa nhập KHÔNG ĐÚNG định dạng của số điện thoại, xin vui lòng nhập lại theo định dạng ĐÚNG!")
-}
-
-func reEnterBirthYear(b *tb.Bot, m *tb.Message) {
-	sendAndHideKeyboard(b, m, "Bạn vừa nhập KHÔNG ĐÚNG năm, xin vui lòng nhập lại!")
-}
-
-func isValidPhoneNum(text string) bool {
-	if len(text) != 10 {
-		return false
-	}
-	for _, e := range text {
-		if e < 48 || e > 57 {
-			return false
-		}
-	}
-	return true
-}
-
-func askYearOfBirth(b *tb.Bot, m *tb.Message) {
-	sendAndHideKeyboard(b, m, "Vui lòng nhập năm sinh của bạn: ")
-}
-
-func isValidYear(text string) bool {
-	for _, e := range text {
-		if e < 48 || e > 57 {
-			return false
-		}
-	}
-	y, _ := strconv.Atoi(text)
-	if y > time.Now().Year()-10 || y < time.Now().Year()-100 {
-		return false
-	}
-	return true
-
-}
 
 func startRegistration(b *tb.Bot, m *tb.Message) {
 	newUser := User{registrationStep: stepToChooseCourse}
@@ -304,7 +263,7 @@ func differentCourse(b *tb.Bot, m *tb.Message) {
 }
 
 func awaitCommand(b *tb.Bot, m *tb.Message) {
-	b.Send(m.Sender, "\nPhiên đăng kí đã kết thúc, gõ /help để hiện menu trợ giúp.")
+	b.Send(m.Sender, "\nGõ /help để hiển thị menu trợ giúp.")
 }
 
 func checkStep(b *tb.Bot, m *tb.Message) {
@@ -327,32 +286,25 @@ func checkStep(b *tb.Bot, m *tb.Message) {
 				u.course = strings.Title(strings.TrimSpace(m.Text))
 				ud.course = u.course
 				ud.dif = 1
-				//sendAndHideKeyboard(b,m,"Cảm ơn bạn. Nhân viên của Trada Tech sẽ liên lạc lại với bạn để hỏi thêm chi tiết.")
+				
 				next(b, m)
 			} else if !isCourse1(m.Text) && !isCourse2(m.Text) {
 				sendAndHideKeyboard(b, m, "Vui lòng dùng 2 nút có sẵn để trả lời.")
 
 				next(b, m)
 			}
-			/*if isCourse3(m.Text) {
-				u.registrationStep = stepToAskName
-				//u.course = strings.Title(strings.TrimSpace(m.Text))
-				u.course = courseMap[113]
-				ud.course = u.course
-				next(b, m)
-			}*/
+			
 		case stepToEnterDifferentCousre:
 			u.registrationStep = stepDone
 			//u.course = strings.Title(strings.TrimSpace(m.Text))
 			ud.external = strings.Title(strings.TrimSpace(m.Text))
 			sendAndHideKeyboard(b, m, "Nhân viên của Trada Tech sẽ liên lạc lại với bạn để hỏi thêm chi tiết, cảm ơn bạn đã đăng kí.")
 			sendMessageToGroup(b, m)
-			//	sayGoodBye(b, m)
 			next(b, m)
-			//removeRegisteredUser(m)
+			
 
 		default:
-			//u.registrationStep = stepToChooseCourse
+			
 			awaitCommand(b, m)
 
 		}
@@ -360,8 +312,6 @@ func checkStep(b *tb.Bot, m *tb.Message) {
 	} else {
 
 		awaitCommand(b, m)
-		//sayGoodBye(b, m)
-		//sendMessageToGroup()
 	}
 }
 
